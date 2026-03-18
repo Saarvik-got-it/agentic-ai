@@ -174,7 +174,340 @@ Optional config override:
 set CONTENT_AGENT_CONFIG=./config/content_agent_config.json
 ```
 
-## 📋 Configuration
+## � Multi-Agent Pipeline
+
+**The Pipeline connects RAG Agent → Content Agent into a production-ready orchestrator.**
+
+The pipeline validates inputs, retrieves context from documents, transforms it through the content agent, and returns a structured response with timing metrics. Designed for easy backend integration and future LangGraph migration.
+
+### Key Design Principles
+
+✅ **Agents remain independently usable** — `rag_agent()` and `content_agent()` work standalone  
+✅ **Config-driven design** — No hardcoding. All personas/content types in `config/content_agent_config.json`  
+✅ **LangGraph-ready** — Each stage is a clean "node" — easy migration later  
+✅ **Comprehensive logging** — Pipeline start, stage execution, completion, timing metrics  
+✅ **FastAPI-ready** — Functions are reusable as API endpoints  
+✅ **Error handling** — Meaningful errors, never crashes  
+
+### Core Function
+
+```python
+from pipelines.main_pipeline import run_pipeline
+
+response = run_pipeline(
+    query="Explain machine learning",
+    content_type="summary",
+    persona="technical_writer",
+    use_rag=True,
+    debug=False
+)
+
+print(response.final_output)
+print(response.metrics)  # {'total_duration': 5.23, 'rag_duration': 2.15, ...}
+```
+
+**Response Structure:**
+
+```python
+{
+    "success": True,
+    "query": "Original query",
+    "rag_output": "Retrieved context from documents",
+    "final_output": "Structured content from content agent",
+    "persona": "technical_writer",
+    "content_type": "summary",
+    "error": None,
+    "metrics": {
+        "total_duration": 5.23,
+        "validation_duration": 0.01,
+        "rag_duration": 2.15,
+        "content_duration": 3.07
+    },
+    "timestamp": "2024-03-18T14:23:55.123456"
+}
+```
+
+### CLI Usage
+
+#### Interactive Pipeline Mode
+
+```bash
+# Start interactive pipeline
+python main.py --pipeline
+
+# Follow the prompts:
+# 📝 Enter query: Explain machine learning
+# 📋 Content type [summary]: blog
+# 👤 Persona [technical_writer]: technical_writer
+# Use RAG retrieval? [Y/n]: y
+```
+
+#### Single Command Execution
+
+```bash
+# With all defaults (technical_writer, summary, RAG enabled)
+python main.py --pipeline --query "Your question"
+
+# With specific persona and content type
+python main.py --pipeline \
+    --query "Topic to explore" \
+    --persona blog_writer \
+    --content-type blog
+
+# Skip RAG stage (direct content transformation)
+python main.py --pipeline \
+    --query "Already formatted text" \
+    --no-rag \
+    --persona beginner_teacher
+
+# Enable debug logging
+python main.py --pipeline --query "Query" --debug
+
+# Show detailed metrics
+python main.py --pipeline --query "Query" --verbose
+```
+
+#### List Available Options
+
+```bash
+python main.py --pipeline --list-options
+
+# Output:
+# Available Personas:
+#   • technical_writer
+#   • blog_writer
+#   • research_analyst
+#   • beginner_teacher
+#
+# Available Content Types:
+#   • summary
+#   • blog
+#   • report
+#   • explanation
+```
+
+### Pipeline Execution Flow
+
+```
+Input Validation
+    ↓
+  [Check query not empty]
+  [Check persona exists in config]
+  [Check content_type exists in config]
+    ↓
+RAG Stage (Optional)
+    ↓
+  [if use_rag=True]: Process through RAG Agent
+    - Load documents
+    - Create embeddings
+    - Retrieve relevant context
+    - Generate contextual response
+  [else]: Use query as-is
+    ↓
+Content Transformation Stage
+    ↓
+  [Process through Content Agent]
+    - Build persona/content-type prompt
+    - Generate LLM output
+    - Apply formatting and length control
+    ↓
+Return Structured Response
+    ↓
+  [Include metrics, timestamp, success flag]
+```
+
+### Python Examples
+
+**Basic Usage (with defaults):**
+
+```python
+from pipelines.main_pipeline import run_pipeline
+
+response = run_pipeline("What is AI?")
+
+if response.success:
+    print(response.final_output)
+else:
+    print(f"Error: {response.error}")
+```
+
+**Advanced Usage (all options):**
+
+```python
+from pipelines.main_pipeline import run_pipeline
+
+response = run_pipeline(
+    query="Explain quantum computing",
+    content_type="explanation",      # One of: summary, blog, report, explanation
+    persona="beginner_teacher",       # One of: technical_writer, blog_writer, research_analyst, beginner_teacher
+    use_rag=True,                     # Enable document retrieval
+    debug=True                        # Verbose logging
+)
+
+if response.success:
+    print(f"✅ Generated {response.content_type} for {response.persona}: {response.final_output[:200]}...")
+    print(f"⏱️  Total time: {response.metrics['total_duration']:.2f}s")
+else:
+    print(f"❌ Failed: {response.error}")
+```
+
+**Bypass RAG (direct content transformation):**
+
+```python
+from pipelines.main_pipeline import run_pipeline
+
+factual_input = """
+Ronaldo is a Portuguese footballer born in 1985.
+He plays for Al Nassr in Saudi Arabia.
+He is considered one of the greatest players of all time.
+"""
+
+response = run_pipeline(
+    query=factual_input,
+    content_type="blog",
+    persona="blog_writer",
+    use_rag=False  # Skip RAG, use input directly
+)
+
+print(response.final_output)
+```
+
+**Batch Processing:**
+
+```python
+from pipelines.main_pipeline import run_pipeline
+
+queries = [
+    "Explain AI",
+    "What is machine learning",
+    "How does deep learning work"
+]
+
+for query in queries:
+    response = run_pipeline(
+        query=query,
+        persona="technical_writer",
+        content_type="explanation"
+    )
+    
+    if response.success:
+        print(f"✅ {query}")
+        print(response.final_output)
+    else:
+        print(f"❌ {query}: {response.error}")
+    print("-" * 80)
+```
+
+### Available Personas & Content Types
+
+**Personas:** Configure in `config/content_agent_config.json`
+
+| Persona | Tone | Depth | Style |
+|---------|------|-------|-------|
+| `technical_writer` | Precise, professional | Intermediate-advanced | Clear headings, bullet points |
+| `blog_writer` | Engaging, accessible | General audience | Narrative flow, short sections |
+| `research_analyst` | Objective, evidence-focused | Thorough, analytical | Structured sections |
+| `beginner_teacher` | Friendly, explanatory | Beginner-friendly | Step-by-step, simple language |
+
+**Content Types:** Configure in `config/content_agent_config.json`
+
+| Type | Objective | Structure |
+|------|-----------|-----------|
+| `summary` | Concise overview | 5-8 bullet points + key takeaway |
+| `blog` | Full blog post | Title, intro, 3-5 sections, conclusion |
+| `report` | Formal report | Executive summary, background, findings, recommendations |
+| `explanation` | Step-by-step walkthrough | What it is, why it matters, steps, example, caveats |
+
+### Error Handling
+
+Pipeline returns `success=False` with meaningful error messages:
+
+```python
+response = run_pipeline("", persona="invalid", content_type="invalid")
+
+if not response.success:
+    print(response.error)
+    # Output: "Query cannot be empty."
+```
+
+**Common Errors:**
+
+- `Query cannot be empty.` — Provide non-empty input
+- `Invalid persona 'xyz'. Available: ...` — Check available personas
+- `Invalid content_type 'xyz'. Available: ...` — Check available content types
+- `RAG retrieval failed: ...` — Check documents and configuration
+- `Content generation failed: ...` — Check LLM configuration and API key
+
+### Integration with FastAPI
+
+```python
+# app.py
+from fastapi import FastAPI, HTTPException
+from pipelines.main_pipeline import run_pipeline, get_available_options
+
+app = FastAPI()
+
+@app.get("/options")
+async def get_options():
+    """List available personas and content types."""
+    return get_available_options()
+
+@app.post("/pipeline")
+async def execute_pipeline(
+    query: str,
+    persona: str = "technical_writer",
+    content_type: str = "summary",
+    use_rag: bool = True
+):
+    """Execute pipeline and return structured response."""
+    response = run_pipeline(
+        query=query,
+        persona=persona,
+        content_type=content_type,
+        use_rag=use_rag
+    )
+    
+    if not response.success:
+        raise HTTPException(status_code=400, detail=response.error)
+    
+    return response.to_dict()
+
+# Run: uvicorn app:app --reload
+```
+
+Then call:
+
+```bash
+curl -X POST "http://localhost:8000/pipeline" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Explain AI",
+    "persona": "beginner_teacher",
+    "content_type": "explanation",
+    "use_rag": true
+  }'
+```
+
+### Future Enhancements (LangGraph Ready)
+
+The pipeline is designed to migrate to LangGraph:
+
+```python
+# Future: Direct LangGraph integration
+from langgraph.graph import StateGraph
+
+# Each stage becomes a node
+graph = StateGraph(PipelineState)
+graph.add_node("validate", validate_stage)
+graph.add_node("rag", rag_stage)
+graph.add_node("content", content_stage)
+graph.add_edge("validate", "rag")
+graph.add_edge("rag", "content")
+
+# Existing pipeline_impl functions work as-is
+```
+
+## �📋 Configuration
 
 Configure via `.env` file:
 
