@@ -1,0 +1,79 @@
+{
+    "personas": {
+        "technical_writer": {
+            "tone": "precise, professional, concise",
+            "depth": "intermediate-to-advanced technical depth",
+            "formatting_style": "clear headings, bullet points for key details"
+        },
+        "blog_writer": {
+            "tone": "engaging and accessible",
+            "depth": "general audience depth",
+            "formatting_style": "narrative flow with short sections"
+        },
+        "research_analyst": {
+            "tone": "objective and evidence-focused",
+            "depth": "analytical and thorough",
+            "formatting_style": "structured sections with findings and implications"
+        },
+        "beginner_teacher": {
+            "tone": "friendly and explanatory",
+            "depth": "beginner-friendly",
+            "formatting_style": "step-by-step with simple language"
+        }
+    },
+    "content_types": {
+        "summary": {
+            "objective": "Create a concise summary from factual input.",
+            "structure": [
+                "5 to 8 bullet points",
+                "Keep each bullet short and factual",
+                "End with 1-line key takeaway"
+            ]
+        },
+        "blog": {
+            "objective": "Create a well-structured blog draft.",
+            "structure": [
+                "Title",
+                "Introduction",
+                "3 to 5 thematic sections with headings",
+                "Conclusion",
+                "Optional call-to-action"
+            ]
+        },
+        "report": {
+            "objective": "Create a structured report.",
+            "structure": [
+                "Executive Summary",
+                "Background",
+                "Key Findings",
+                "Recommendations",
+                "Conclusion"
+            ]
+        },
+        "explanation": {
+            "objective": "Explain concepts clearly in a step-by-step way.",
+            "structure": [
+                "What it is",
+                "Why it matters",
+                "Step-by-step explanation",
+                "Simple example",
+                "Common mistakes or caveats"
+            ]
+        }
+    },
+    "prompt": {
+        "system_instructions": "Transform the given factual input into polished content without adding fabricated facts.",
+        "no_hallucination_rule": "Do not invent facts. Use only the provided input. If details are missing, explicitly state what is missing.",
+        "readability_rule": "Use clean formatting, short paragraphs, and clear transitions.",
+        "structure_header": "Required output structure:",
+        "template": "You are a content transformation agent.\n\n{system_instructions}\n\nPersona:\n- Name: {persona_name}\n- Tone: {persona_tone}\n- Depth: {persona_depth}\n- Formatting style: {persona_formatting_style}\n\nRequested content type:\n- Type: {content_type}\n- Objective: {content_objective}\n{structure_header}\n{content_structure}\n\nRules:\n- {no_hallucination_rule}\n- {readability_rule}\n\nInput facts:\n{input_text}\n\nProduce the final content now."
+    },
+    "length_control": {
+        "max_chars_by_type": {
+            "summary": 4000,
+            "blog": 12000,
+            "report": 15000,
+            "explanation": 10000
+        }
+    }
+}

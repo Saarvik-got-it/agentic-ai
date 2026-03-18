@@ -1,6 +1,6 @@
 # RAG Agent - Production-Ready Document-Based Question Answering
 
-A scalable, modular Retrieval-Augmented Generation (RAG) agent built with LangChain, Google Gemini, and FAISS. Designed for standalone CLI usage and seamless integration into FastAPI backends.
+A scalable, modular Retrieval-Augmented Generation (RAG) system with a pipeline-ready Content Agent, built with LangChain components, Google Gemini, and FAISS. Designed for standalone CLI usage and seamless integration into backend workflows.
 
 ## ✨ Features
 
@@ -10,6 +10,7 @@ A scalable, modular Retrieval-Augmented Generation (RAG) agent built with LangCh
 - **🔍 Vector Embeddings**: Direct Google Generative AI SDK embeddings (Gemini) with automatic vector storage
 - **📦 FAISS Vector Database**: Persistent local vector store for fast semantic search
 - **🤖 LLM Response Generation**: Google Gemini with intelligent fallback mechanism
+- **✍️ Content Transformation**: Config-driven Content Agent for persona-based, structured output generation
 - **♻️ Caching**: Automatic reuse of existing vector indices (no recomputation)
 - **⏱️ Performance Tracking**: Built-in timing and latency measurement
 - **📊 Comprehensive Logging**: Detailed logs for debugging and monitoring
@@ -32,6 +33,9 @@ agentic-ai/
 │   ├── __init__.py
 │   └── rag_agent.py            # Main RAG Agent class
 │
+├── config/
+│   └── content_agent_config.json  # Personas/content types/prompt templates
+│
 ├── utils/                       # Shared utilities and abstractions
 │   ├── __init__.py
 │   ├── config.py               # Configuration management
@@ -53,10 +57,17 @@ agentic-ai/
 ├── logs/                        # Application logs (auto-created)
 │
 ├── main.py                     # CLI entry point
+├── content_agent.py            # Standalone Content Agent (CLI + function)
 ├── requirements.txt            # Python dependencies
 ├── .env.example                # Environment variable template
 └── README.md                   # This file
 ```
+
+## 🔗 Multi-Agent Pipeline
+
+Typical flow for multi-agent orchestration:
+
+`User Query -> RAG Agent -> Content Agent -> Email Agent`
 
 ## 🚀 Quick Start
 
@@ -119,6 +130,48 @@ python main.py -q "Your question here"
 #### Document Ingestion (explicit)
 ```bash
 python main.py --ingest
+```
+
+## ✍️ Content Agent
+
+The Content Agent transforms factual input (from RAG or any source) into structured, persona-driven content.
+
+Core function:
+
+```python
+from content_agent import content_agent
+
+result = content_agent(rag_output, "blog", "technical_writer")
+```
+
+Design highlights:
+- Config-driven personas, content types, and prompt templates (no hardcoded prompt logic)
+- Dynamic prompt construction with clarity and no-hallucination rules
+- Standalone CLI support and pipeline-ready function interface
+- Uses `utils/llm.py -> generate_with_fallback()` for generation
+- Logging of input size, persona, content type, and output size
+- Error handling for empty input, invalid persona/content type, and runtime failures
+
+CLI examples:
+
+```bash
+python content_agent.py --list-options
+
+python content_agent.py \
+    --input-text "Cristiano Ronaldo is a Portuguese footballer..." \
+    --content-type summary \
+    --persona research_analyst
+
+python content_agent.py \
+    --input-file ./data/facts.txt \
+    --content-type report \
+    --persona technical_writer
+```
+
+Optional config override:
+
+```bash
+set CONTENT_AGENT_CONFIG=./config/content_agent_config.json
 ```
 
 ## 📋 Configuration
