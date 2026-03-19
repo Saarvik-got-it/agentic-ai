@@ -12,6 +12,7 @@ from .main_pipeline import (
     ValidationError,
     RAGStageError,
     ContentStageError,
+    EmailStageError,
 )
 from .langgraph_pipeline import (
     run_langgraph_pipeline,
@@ -27,6 +28,7 @@ __all__ = [
     "ValidationError",
     "RAGStageError",
     "ContentStageError",
+    "EmailStageError",
     "run_langgraph_pipeline",
     "build_langgraph",
     "PipelineState",

@@ -113,7 +113,7 @@ EXAMPLES:
     parser.add_argument(
         "--pipeline",
         action="store_true",
-        help="Run multi-agent pipeline (RAG → Content) instead of RAG agent"
+        help="Run multi-agent pipeline (RAG → Content → Email optional) instead of RAG agent"
     )
     
     parser.add_argument(
@@ -170,6 +170,24 @@ EXAMPLES:
         action="store_true",
         help="[Pipeline] Use LangGraph orchestration layer"
     )
+
+    parser.add_argument(
+        "--send-email",
+        action="store_true",
+        help="[Pipeline] Send final output via Email Agent"
+    )
+
+    parser.add_argument(
+        "--email",
+        type=str,
+        help="[Pipeline] Recipient email address"
+    )
+
+    parser.add_argument(
+        "--email-subject",
+        type=str,
+        help="[Pipeline] Optional custom email subject"
+    )
     
     args = parser.parse_args()
     
@@ -180,7 +198,10 @@ EXAMPLES:
         args.content_type is not None or 
         args.no_rag or 
         args.list_options or
-        args.use_langgraph
+        args.use_langgraph or
+        args.send_email or
+        args.email is not None or
+        args.email_subject is not None
     )
     
     # Pipeline mode (explicit or auto-detected)
@@ -203,6 +224,9 @@ EXAMPLES:
                 debug=args.debug,
                 verbose=args.verbose,
                 use_langgraph=args.use_langgraph,
+                send_email=args.send_email,
+                email=args.email,
+                email_subject=args.email_subject,
             )
         else:
             interactive_mode(use_langgraph=args.use_langgraph)

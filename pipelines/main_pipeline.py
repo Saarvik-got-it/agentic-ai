@@ -26,6 +26,7 @@ from datetime import datetime
 
 from agents.rag_agent import rag_agent
 from agents.content_agent import content_agent, _load_config as load_content_config
+from agents.email_agent import email_agent
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -38,6 +39,7 @@ class PipelineMetrics:
     total_duration: float = 0.0
     rag_duration: float = 0.0
     content_duration: float = 0.0
+    email_duration: float = 0.0
     validation_duration: float = 0.0
     
     def to_dict(self) -> Dict[str, float]:
@@ -55,6 +57,7 @@ class PipelineResponse:
     final_output: Optional[str] = None
     persona: Optional[str] = None
     content_type: Optional[str] = None
+    email_status: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     metrics: Optional[Dict[str, float]] = None
     timestamp: Optional[str] = None
@@ -85,6 +88,11 @@ class RAGStageError(PipelineError):
 
 class ContentStageError(PipelineError):
     """Raised when Content stage fails."""
+    pass
+
+
+class EmailStageError(PipelineError):
+    """Raised when Email stage fails."""
     pass
 
 
@@ -241,12 +249,68 @@ def _content_stage(
         raise ContentStageError(f"Content generation failed: {str(e)}") from e
 
 
+def _email_stage(
+    final_output: str,
+    recipient_email: str,
+    subject: Optional[str] = None,
+    debug: bool = False,
+) -> tuple[Dict[str, Any], float]:
+    """
+    Execute email delivery stage.
+
+    Args:
+        final_output: Content to send
+        recipient_email: Target recipient
+        subject: Optional custom subject
+        debug: Enable debug logging
+
+    Returns:
+        Tuple of (email_status, duration_seconds)
+
+    Raises:
+        EmailStageError: If email delivery fails
+    """
+    start_time = time.time()
+
+    try:
+        if debug:
+            logger.debug(
+                "[EMAIL STAGE] Starting email delivery. recipient=%s content_len=%s",
+                recipient_email,
+                len(final_output),
+            )
+
+        logger.info("[PIPELINE] Running Email stage")
+        status = email_agent(
+            content=final_output,
+            recipient_email=recipient_email,
+            subject=subject,
+        )
+
+        duration = time.time() - start_time
+        logger.info("[PIPELINE] Email stage completed in %.2fs", duration)
+
+        if status.get("status") != "success":
+            raise EmailStageError(f"Email delivery failed: {status.get('error', 'unknown error')}")
+
+        return status, duration
+
+    except EmailStageError:
+        raise
+    except Exception as e:
+        logger.error(f"[PIPELINE] Email stage failed: {str(e)}")
+        raise EmailStageError(f"Email delivery failed: {str(e)}") from e
+
+
 def run_pipeline(
     query: str,
     content_type: str = "summary",
     persona: str = "technical_writer",
     use_rag: bool = True,
-    debug: bool = False
+    debug: bool = False,
+    send_email: bool = False,
+    email: Optional[str] = None,
+    email_subject: Optional[str] = None,
 ) -> PipelineResponse:
     """
     Execute full pipeline: Validate → RAG → Content → Return.
@@ -263,6 +327,9 @@ def run_pipeline(
         use_rag: Whether to run RAG stage (default: True)
                 If False, query is passed directly to content stage
         debug: Enable debug-level logging (default: False)
+        send_email: Whether to send final output via email (default: False)
+        email: Recipient email address (required if send_email=True)
+        email_subject: Optional custom email subject
     
     Returns:
         PipelineResponse object containing:
@@ -300,8 +367,8 @@ def run_pipeline(
     metrics = PipelineMetrics()
     
     logger.info(
-        "[PIPELINE] Starting execution | query_len=%s use_rag=%s content_type=%s persona=%s",
-        len(query), use_rag, content_type, persona
+        "[PIPELINE] Starting execution | query_len=%s use_rag=%s content_type=%s persona=%s send_email=%s",
+        len(query), use_rag, content_type, persona, send_email or bool(email)
     )
     
     if debug:
@@ -318,6 +385,10 @@ def run_pipeline(
         
         config = _load_content_config_safe()
         validate_inputs(query, content_type, persona, config)
+
+        send_email_requested = send_email or bool(email)
+        if send_email_requested and not email:
+            raise ValidationError("Email recipient is required when email delivery is enabled.")
         
         metrics.validation_duration = time.time() - validation_start
         logger.info(f"[PIPELINE] Validation completed in {metrics.validation_duration:.2f}s")
@@ -333,6 +404,15 @@ def run_pipeline(
         final_output, metrics.content_duration = _content_stage(
             rag_output, content_type, persona, debug
         )
+
+        email_status: Optional[Dict[str, Any]] = None
+        if send_email_requested:
+            email_status, metrics.email_duration = _email_stage(
+                final_output=final_output,
+                recipient_email=email,
+                subject=email_subject,
+                debug=debug,
+            )
         
         # ============================================================
         # STAGE 4: RETURN STRUCTURED RESPONSE
@@ -358,6 +438,7 @@ def run_pipeline(
             final_output=final_output,
             persona=persona,
             content_type=content_type,
+            email_status=email_status,
             error=None,
             metrics=metrics.to_dict(),
             timestamp=datetime.utcnow().isoformat()
@@ -375,7 +456,7 @@ def run_pipeline(
             timestamp=datetime.utcnow().isoformat()
         )
     
-    except (RAGStageError, ContentStageError) as e:
+    except (RAGStageError, ContentStageError, EmailStageError) as e:
         logger.error(f"[PIPELINE] Stage error: {str(e)}")
         metrics.total_duration = time.time() - pipeline_start
         

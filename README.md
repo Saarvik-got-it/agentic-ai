@@ -11,6 +11,7 @@ A scalable, modular Retrieval-Augmented Generation (RAG) system with a pipeline-
 - **📦 FAISS Vector Database**: Persistent local vector store for fast semantic search
 - **🤖 LLM Response Generation**: Google Gemini with intelligent fallback mechanism
 - **✍️ Content Transformation**: Config-driven Content Agent for persona-based, structured output generation
+- **📧 Email Delivery**: Production-ready Email Agent for SMTP delivery (Gmail-compatible)
 - **♻️ Caching**: Automatic reuse of existing vector indices (no recomputation)
 - **⏱️ Performance Tracking**: Built-in timing and latency measurement
 - **📊 Comprehensive Logging**: Detailed logs for debugging and monitoring
@@ -32,6 +33,7 @@ agentic-ai/
 ├── agents/                      # RAG agent implementations
 │   ├── __init__.py
 │   └── rag_agent.py            # Main RAG Agent class
+│   └── email_agent.py          # Email Agent implementation
 │
 ├── config/
 │   └── content_agent_config.json  # Personas/content types/prompt templates
@@ -58,6 +60,7 @@ agentic-ai/
 │
 ├── main.py                     # CLI entry point
 ├── content_agent.py            # Standalone Content Agent (CLI + function)
+├── email_agent.py              # Standalone Email Agent (CLI + function)
 ├── requirements.txt            # Python dependencies
 ├── .env.example                # Environment variable template
 └── README.md                   # This file
@@ -174,6 +177,62 @@ Optional config override:
 set CONTENT_AGENT_CONFIG=./config/content_agent_config.json
 ```
 
+## 📧 Email Agent
+
+The Email Agent delivers generated content as a professional email using SMTP.
+
+What it does:
+- Accepts structured content from Content Agent or any source
+- Generates a subject automatically when not provided
+- Formats a clean email body (greeting, content, closing)
+- Sends through Gmail-compatible SMTP with TLS
+- Returns structured status payload for pipeline/API use
+
+Core function:
+
+```python
+from email_agent import email_agent
+
+result = email_agent(
+    content="Your generated content...",
+    recipient_email="recipient@example.com",
+    subject="Optional custom subject"
+)
+```
+
+Standalone CLI:
+
+```bash
+python email_agent.py --input-text "Hello world" --to example@gmail.com
+
+python email_agent.py --input-file output.txt --to example@gmail.com --subject "Weekly AI Summary"
+```
+
+Pipeline usage:
+
+```bash
+python main.py --query "Explain machine learning" --email example@gmail.com
+
+python main.py --pipeline --query "Explain machine learning" --email example@gmail.com
+
+python main.py --pipeline --use-langgraph --query "Explain machine learning" --email example@gmail.com
+```
+
+Environment setup (.env):
+
+```bash
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
+EMAIL_USE_TLS=true
+```
+
+Gmail App Password:
+- Enable 2-Step Verification on your Google account
+- Create an App Password for Mail
+- Use the App Password as EMAIL_PASSWORD (not your normal account password)
+
 ## � Multi-Agent Pipeline
 
 **The Pipeline connects RAG Agent → Content Agent into a production-ready orchestrator.**
@@ -215,7 +274,7 @@ After (graph-based orchestration):
 
 ```text
 StateGraph
-    START -> rag_node -> content_node -> END
+    START -> rag_node -> content_node -> email_node -> END
 ```
 
 ### How To Run (LangGraph)
@@ -233,7 +292,7 @@ python main.py --pipeline --use-langgraph --query "Explain machine learning"
 ### Diagram
 
 ```text
-User -> RAG Node -> Content Node -> Output
+User -> RAG Node -> Content Node -> Email Node -> Output
 ```
 
 ### Benefits
@@ -242,6 +301,13 @@ User -> RAG Node -> Content Node -> Output
 - Scalable design for additional nodes
 - Easier extension for conditional routing and retries
 - FastAPI deployment ready (function-callable entrypoint)
+
+### Future Scope
+
+- Gmail OAuth / Gmail API integration
+- Email templates (HTML and brand-styled themes)
+- Attachments and rich content
+- Notification and bulk email workflows
 
 ### Python Entry Point
 

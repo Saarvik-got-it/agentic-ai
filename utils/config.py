@@ -35,9 +35,17 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(default=0.3, alias="LLM_TEMPERATURE")
     llm_max_tokens: int = Field(default=512, alias="LLM_MAX_TOKENS")
     
+    # Email Configuration (optional, used by Email Agent)
+    email_host: str = Field(default="smtp.gmail.com", alias="EMAIL_HOST")
+    email_port: int = Field(default=587, alias="EMAIL_PORT")
+    email_user: str = Field(default="", alias="EMAIL_USER")
+    email_password: str = Field(default="", alias="EMAIL_PASSWORD")
+    email_use_tls: bool = Field(default=True, alias="EMAIL_USE_TLS")
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
     
     def ensure_paths_exist(self):
         """Create necessary directories if they don't exist."""

@@ -2,7 +2,7 @@
 Pipeline CLI Interface for multi-agent orchestration.
 
 Provides interactive and command-line interfaces for running the main pipeline
-that connects RAG Agent → Content Agent.
+that connects RAG Agent → Content Agent → Email Agent (optional).
 
 Features:
 - Interactive mode for easy experimentation
@@ -59,6 +59,18 @@ def display_response(response: PipelineResponse, verbose: bool = False) -> None:
         print("-" * 80)
         print(response.final_output)
         print("-" * 80)
+
+        if response.email_status:
+            print("\n📧 Email Status:")
+            print("-" * 80)
+            print(f"Status: {response.email_status.get('status', 'unknown')}")
+            if response.email_status.get("recipient"):
+                print(f"Recipient: {response.email_status.get('recipient')}")
+            if response.email_status.get("subject"):
+                print(f"Subject: {response.email_status.get('subject')}")
+            if response.email_status.get("error"):
+                print(f"Error: {response.email_status.get('error')}")
+            print("-" * 80)
         
         if verbose and response.metrics:
             print(f"\n⏱️  Metrics:")
@@ -66,6 +78,7 @@ def display_response(response: PipelineResponse, verbose: bool = False) -> None:
             print(f"  Validation: {response.metrics.get('validation_duration', 0):.2f}s")
             print(f"  RAG Stage: {response.metrics.get('rag_duration', 0):.2f}s")
             print(f"  Content Stage: {response.metrics.get('content_duration', 0):.2f}s")
+            print(f"  Email Stage: {response.metrics.get('email_duration', 0):.2f}s")
         
         if response.timestamp:
             print(f"  Generated: {response.timestamp}")
@@ -87,7 +100,7 @@ def interactive_mode(use_langgraph: bool = False) -> None:
     print("\n" + "=" * 80)
     print("🔗 PIPELINE - Multi-Agent Orchestration")
     print("=" * 80)
-    print("Connect RAG Agent → Content Agent\n")
+    print("Connect RAG Agent → Content Agent → Email Agent (optional)\n")
     print(
         "Orchestration Engine: "
         + ("LangGraph" if use_langgraph else "Simple pipeline")
@@ -141,6 +154,12 @@ def interactive_mode(use_langgraph: bool = False) -> None:
             # Use RAG
             rag_choice = input("Use RAG retrieval? [Y/n]: ").strip().lower()
             use_rag = rag_choice != "n"
+
+            # Optional email
+            email = input("📧 Send output via email? Enter recipient (or leave empty): ").strip()
+            email_subject = None
+            if email:
+                email_subject = input("✉️  Email subject [auto]: ").strip() or None
             
             # Execute pipeline
             print("\n⏳ Processing...")
@@ -150,7 +169,10 @@ def interactive_mode(use_langgraph: bool = False) -> None:
                 content_type=content_type,
                 persona=persona,
                 use_rag=use_rag,
-                debug=False
+                debug=False,
+                send_email=bool(email),
+                email=email or None,
+                email_subject=email_subject,
             )
             
             display_response(response, verbose=False)
@@ -167,6 +189,9 @@ def cli_single_execution(
     debug: bool = False,
     verbose: bool = False,
     use_langgraph: bool = False,
+    send_email: bool = False,
+    email: Optional[str] = None,
+    email_subject: Optional[str] = None,
 ) -> None:
     """
     Execute pipeline from command-line arguments.
@@ -179,6 +204,9 @@ def cli_single_execution(
         debug: Enable debug logging
         verbose: Show detailed output
         use_langgraph: Use LangGraph orchestration instead of simple pipeline
+        send_email: Whether to send final output via email
+        email: Recipient email address
+        email_subject: Optional custom subject line
     """
     # Load defaults if not specified
     try:
@@ -209,7 +237,10 @@ def cli_single_execution(
         content_type=content_type,
         persona=persona,
         use_rag=not no_rag,
-        debug=debug
+        debug=debug,
+        send_email=send_email or bool(email),
+        email=email,
+        email_subject=email_subject,
     )
     
     display_response(response, verbose=verbose)
@@ -267,6 +298,9 @@ EXAMPLES:
 
     LangGraph orchestration:
         python main.py --pipeline --use-langgraph --query "Query"
+
+    Send final output via email:
+        python main.py --pipeline --query "Query" --email user@example.com
 
 DEFAULTS:
   • Persona: technical_writer
@@ -333,6 +367,24 @@ PERSONAS & CONTENT TYPES:
         action="store_true",
         help="Use LangGraph orchestration engine"
     )
+
+    parser.add_argument(
+        "--send-email",
+        action="store_true",
+        help="Send final output via Email Agent"
+    )
+
+    parser.add_argument(
+        "--email",
+        type=str,
+        help="Recipient email address for Email Agent"
+    )
+
+    parser.add_argument(
+        "--email-subject",
+        type=str,
+        help="Optional email subject line"
+    )
     
     # Verbose
     parser.add_argument(
@@ -361,6 +413,9 @@ PERSONAS & CONTENT TYPES:
             debug=args.debug,
             verbose=args.verbose,
             use_langgraph=args.use_langgraph,
+            send_email=args.send_email,
+            email=args.email,
+            email_subject=args.email_subject,
         )
     
     # Interactive mode (default)
