@@ -10,7 +10,13 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from utils.email_utils import EmailConfigError, EmailSendError, send_smtp_email
+from utils.email_utils import (
+    EmailConfigError,
+    EmailSendError,
+    send_smtp_email,
+    markdown_to_html,
+    _build_html_email,
+)
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -44,7 +50,7 @@ def _generate_subject(content: str) -> str:
 
 
 def _format_email_body(content: str) -> str:
-    """Format content into a clean professional email body."""
+    """Format content into a clean professional email body (plain text)."""
     clean_content = content.strip()
     return (
         "Hello,\n\n"
@@ -53,6 +59,26 @@ def _format_email_body(content: str) -> str:
         "Best regards,\n"
         "AI Assistant"
     )
+
+
+def _format_html_email_body(content: str) -> str:
+    """Format content into a professional HTML email with Markdown conversion.
+    
+    Converts Markdown to HTML and wraps in professional email template.
+    """
+    clean_content = content.strip()
+    # Convert Markdown to HTML
+    html_content = markdown_to_html(clean_content)
+    lower_html = html_content.lower()
+    logger.info(
+        "[EMAIL] HTML conversion check h1=%s ul=%s strong=%s",
+        "<h1" in lower_html,
+        "<ul" in lower_html,
+        "<strong" in lower_html,
+    )
+    logger.debug("[EMAIL] Converted HTML snippet: %s", html_content[:240].replace("\n", " "))
+    # Wrap in professional email template
+    return _build_html_email(html_content)
 
 
 def email_agent(
@@ -79,7 +105,8 @@ def email_agent(
             raise ValueError(f"Invalid recipient_email format: {recipient_email}")
 
         resolved_subject = (subject or "").strip() or _generate_subject(content)
-        body = _format_email_body(content)
+        body_text = _format_email_body(content)
+        body_html = _format_html_email_body(content)
 
         logger.info("[EMAIL] Preparing email")
         logger.info("[EMAIL] Sending to %s", recipient_email)
@@ -87,8 +114,8 @@ def email_agent(
         send_smtp_email(
             recipient_email=recipient_email.strip(),
             subject=resolved_subject,
-            body_text=body,
-            body_html=None,
+            body_text=body_text,
+            body_html=body_html,
         )
 
         logger.info("[EMAIL] Success")

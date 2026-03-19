@@ -6,6 +6,7 @@ Transforms factual input into structured, persona-driven output for downstream c
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -102,6 +103,11 @@ def build_prompt(input_text: str, content_type: str, persona: str) -> str:
         ),
     )
 
+    preservation_rule = (
+        "Preserve all key factual points from input. "
+        "If input includes numbered or bulleted items, retain them in Key Findings."
+    )
+
     return template.format(
         system_instructions=prompt_cfg.get("system_instructions", ""),
         persona_name=persona,
@@ -113,9 +119,90 @@ def build_prompt(input_text: str, content_type: str, persona: str) -> str:
         structure_header=prompt_cfg.get("structure_header", "Required output structure:"),
         content_structure="\n".join(content_cfg.get("structure", [])),
         no_hallucination_rule=prompt_cfg.get("no_hallucination_rule", "Do not invent facts."),
-        readability_rule=prompt_cfg.get("readability_rule", "Prioritize clarity and structure."),
+        readability_rule=(
+            prompt_cfg.get("readability_rule", "Prioritize clarity and structure.")
+            + " "
+            + preservation_rule
+        ),
         input_text=input_text.strip(),
     )
+
+
+def _extract_key_points(text: str) -> list[str]:
+    """Extract factual list-like points from source text without inventing content."""
+    normalized = (text or "").replace("\\r\\n", "\n").replace("\\n", "\n")
+
+    points: list[str] = []
+    for raw_line in normalized.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if re.match(r"^\d+[\.)]\s+", line):
+            points.append(re.sub(r"^\d+[\.)]\s+", "", line).strip())
+            continue
+
+        if re.match(r"^[-*]\s+", line):
+            points.append(re.sub(r"^[-*]\s+", "", line).strip())
+
+    if not points:
+        # Fallback for compact single-line patterns like:
+        # "1. point one 2. point two 3. point three"
+        inline_points = re.findall(r"(?:^|\s)\d+[\.)]\s+([^\n\r]+?)(?=\s\d+[\.)]\s+|$)", normalized)
+        points.extend(p.strip() for p in inline_points if p and p.strip())
+
+    # De-duplicate while preserving order
+    deduped: list[str] = []
+    seen = set()
+    for point in points:
+        key = point.lower()
+        if key not in seen:
+            deduped.append(point)
+            seen.add(key)
+    return deduped
+
+
+def _needs_structure_repair(output_text: str, content_type: str, source_points: list[str]) -> bool:
+    """Detect when model output is too short or misses expected structure for robust delivery."""
+    lowered = (output_text or "").lower()
+
+    if content_type == "report":
+        if len(output_text.strip()) < 220:
+            return True
+        if "key findings" not in lowered:
+            return True
+        if source_points and not any(marker in output_text for marker in ("1.", "- ", "* ")):
+            return True
+
+    if content_type == "summary":
+        if len(output_text.strip()) < 120 and source_points:
+            return True
+
+    return False
+
+
+def _repair_output_structure(output_text: str, content_type: str, source_points: list[str]) -> str:
+    """Repair structure by appending factual points from source when output is underspecified."""
+    cleaned = (output_text or "").strip()
+    if not source_points:
+        return cleaned
+
+    points_block = "\n".join(f"- {point}" for point in source_points)
+
+    if content_type == "report":
+        if "key findings" in cleaned.lower():
+            return cleaned + "\n\n### Source-Aligned Findings\n" + points_block
+
+        return (
+            cleaned
+            + "\n\n### Key Findings\n"
+            + points_block
+        )
+
+    if content_type == "summary":
+        return cleaned + "\n\n### Key Points\n" + points_block
+
+    return cleaned
 
 
 def _post_process_output(output_text: str, content_type: str, config: Dict[str, Any]) -> str:
@@ -130,6 +217,28 @@ def _post_process_output(output_text: str, content_type: str, config: Dict[str, 
         cleaned = cleaned[:max_chars].rstrip() + "\n\n[Truncated due to configured length control]"
 
     return cleaned
+
+
+def _post_process_with_source(
+    output_text: str,
+    content_type: str,
+    config: Dict[str, Any],
+    source_text: str,
+) -> str:
+    """Post-process output and preserve source factual points for structural robustness."""
+    processed = _post_process_output(output_text, content_type, config)
+    source_points = _extract_key_points(source_text)
+
+    if _needs_structure_repair(processed, content_type, source_points):
+        logger.warning(
+            "Content output too short/under-structured; applying source-aligned structure repair | content_type=%s output_chars=%s extracted_points=%s",
+            content_type,
+            len(processed),
+            len(source_points),
+        )
+        processed = _repair_output_structure(processed, content_type, source_points)
+
+    return processed
 
 
 def content_agent(input_text: str, content_type: str, persona: str) -> str:
@@ -156,7 +265,12 @@ def content_agent(input_text: str, content_type: str, persona: str) -> str:
         if not response or not response.strip():
             raise ContentAgentError("LLM returned empty content.")
 
-        output = _post_process_output(response, content_type, config)
+        output = _post_process_with_source(
+            output_text=response,
+            content_type=content_type,
+            config=config,
+            source_text=input_text,
+        )
 
         logger.info(
             "Content agent complete | persona=%s content_type=%s output_chars=%s",

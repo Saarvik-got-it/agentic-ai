@@ -218,6 +218,50 @@ python main.py --pipeline --query "Explain machine learning" --email example@gma
 python main.py --pipeline --use-langgraph --query "Explain machine learning" --email example@gmail.com
 ```
 
+### Email Formatting
+
+Emails support **rich HTML formatting** with professional styling:
+
+- **Markdown Support**: Content is automatically converted from Markdown to formatted HTML
+- **Professional Template**: Emails include professional CSS styling with proper typography
+- **Multipart Format**: Emails include both plain text (for compatibility) and HTML versions
+- **Rendering Support**: Headings, bold, italics, lists, code blocks, blockquotes, and tables all render properly
+
+**Features:**
+- Top-level headings (# Heading) appear with styled borders
+- Secondary headings (## Heading) also styled with borders
+- Inline code appears with light background (`code`)
+- Code blocks appear with highlighted background (```code```)
+- Lists display properly with correct indentation
+- Blockquotes appear with left border accent
+- Links are styled and clickable
+
+**Graceful Fallback:**
+If Markdown library is unavailable, emails gracefully fall back to plain text without errors.
+
+**Example:**
+When you send this Markdown content:
+```
+# Machine Learning Overview
+
+Machine learning is a **powerful** technology that uses:
+
+- Supervised learning
+- Unsupervised learning
+- Reinforcement learning
+
+Key concepts include:
+
+```python
+model.fit(training_data)
+predictions = model.predict(test_data)
+```
+
+For more details, see [the guide](https://example.com).
+```
+
+The email recipient sees this rendered as a professionally formatted HTML email with styled headings, bold text, bullet lists, highlighted code, and working links.
+
 Environment setup (.env):
 
 ```bash
