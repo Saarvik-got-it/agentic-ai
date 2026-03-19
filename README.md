@@ -189,6 +189,73 @@ The pipeline validates inputs, retrieves context from documents, transforms it t
 ✅ **FastAPI-ready** — Functions are reusable as API endpoints  
 ✅ **Error handling** — Meaningful errors, never crashes  
 
+## LangGraph Pipeline
+
+LangGraph is a graph orchestration framework for LLM workflows. In this project, it is used as an orchestration layer only, while keeping the existing RAG agent and Content agent interfaces unchanged.
+
+### Why LangGraph Here
+
+- Adds a modular orchestration layer for multi-step agent flows
+- Keeps node boundaries explicit (`rag_node`, `content_node`)
+- Enables future branching/retry/memory patterns without rewriting agents
+- Preserves config-driven behavior and existing CLI usage
+
+### Architecture Comparison
+
+Before (linear function orchestration):
+
+```text
+run_pipeline()
+    -> RAG stage
+    -> Content stage
+    -> response
+```
+
+After (graph-based orchestration):
+
+```text
+StateGraph
+    START -> rag_node -> content_node -> END
+```
+
+### How To Run (LangGraph)
+
+```bash
+python main.py --use-langgraph
+
+# Single command mode
+python main.py --use-langgraph --query "Explain machine learning" --persona technical_writer --content-type summary
+
+# Optional explicit pipeline flag
+python main.py --pipeline --use-langgraph --query "Explain machine learning"
+```
+
+### Diagram
+
+```text
+User -> RAG Node -> Content Node -> Output
+```
+
+### Benefits
+
+- Modular orchestration
+- Scalable design for additional nodes
+- Easier extension for conditional routing and retries
+- FastAPI deployment ready (function-callable entrypoint)
+
+### Python Entry Point
+
+```python
+from pipelines.langgraph_pipeline import run_langgraph_pipeline
+
+response = run_langgraph_pipeline(
+        query="Explain machine learning",
+        content_type="summary",
+        persona="technical_writer",
+        use_rag=True,
+)
+```
+
 ### Core Function
 
 ```python

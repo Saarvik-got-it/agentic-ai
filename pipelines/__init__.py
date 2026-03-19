@@ -13,6 +13,11 @@ from .main_pipeline import (
     RAGStageError,
     ContentStageError,
 )
+from .langgraph_pipeline import (
+    run_langgraph_pipeline,
+    build_langgraph,
+    PipelineState,
+)
 
 __all__ = [
     "run_pipeline",
@@ -22,5 +27,8 @@ __all__ = [
     "ValidationError",
     "RAGStageError",
     "ContentStageError",
+    "run_langgraph_pipeline",
+    "build_langgraph",
+    "PipelineState",
 ]
 

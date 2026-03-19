@@ -164,6 +164,12 @@ EXAMPLES:
         action="store_true",
         help="Enable debug logging"
     )
+
+    parser.add_argument(
+        "--use-langgraph",
+        action="store_true",
+        help="[Pipeline] Use LangGraph orchestration layer"
+    )
     
     args = parser.parse_args()
     
@@ -173,7 +179,8 @@ EXAMPLES:
         args.persona is not None or 
         args.content_type is not None or 
         args.no_rag or 
-        args.list_options
+        args.list_options or
+        args.use_langgraph
     )
     
     # Pipeline mode (explicit or auto-detected)
@@ -194,10 +201,11 @@ EXAMPLES:
                 persona=args.persona,
                 no_rag=args.no_rag,
                 debug=args.debug,
-                verbose=args.verbose
+                verbose=args.verbose,
+                use_langgraph=args.use_langgraph,
             )
         else:
-            interactive_mode()
+            interactive_mode(use_langgraph=args.use_langgraph)
     
     # Ingest documents (RAG mode)
     elif args.ingest:

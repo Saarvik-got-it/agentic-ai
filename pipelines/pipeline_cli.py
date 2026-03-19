@@ -24,6 +24,7 @@ from pipelines.main_pipeline import (
     get_available_options,
     PipelineResponse,
 )
+from pipelines.langgraph_pipeline import run_langgraph_pipeline
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -81,12 +82,17 @@ def display_response(response: PipelineResponse, verbose: bool = False) -> None:
     print("\n" + "=" * 80 + "\n")
 
 
-def interactive_mode() -> None:
+def interactive_mode(use_langgraph: bool = False) -> None:
     """Run pipeline in interactive mode."""
     print("\n" + "=" * 80)
     print("🔗 PIPELINE - Multi-Agent Orchestration")
     print("=" * 80)
     print("Connect RAG Agent → Content Agent\n")
+    print(
+        "Orchestration Engine: "
+        + ("LangGraph" if use_langgraph else "Simple pipeline")
+        + "\n"
+    )
     
     # Load and display available options
     try:
@@ -138,7 +144,8 @@ def interactive_mode() -> None:
             
             # Execute pipeline
             print("\n⏳ Processing...")
-            response = run_pipeline(
+            runner = run_langgraph_pipeline if use_langgraph else run_pipeline
+            response = runner(
                 query=query,
                 content_type=content_type,
                 persona=persona,
@@ -159,6 +166,7 @@ def cli_single_execution(
     no_rag: bool = False,
     debug: bool = False,
     verbose: bool = False,
+    use_langgraph: bool = False,
 ) -> None:
     """
     Execute pipeline from command-line arguments.
@@ -170,6 +178,7 @@ def cli_single_execution(
         no_rag: Skip RAG stage if True
         debug: Enable debug logging
         verbose: Show detailed output
+        use_langgraph: Use LangGraph orchestration instead of simple pipeline
     """
     # Load defaults if not specified
     try:
@@ -194,7 +203,8 @@ def cli_single_execution(
     
     # Execute
     print("\n⏳ Processing...")
-    response = run_pipeline(
+    runner = run_langgraph_pipeline if use_langgraph else run_pipeline
+    response = runner(
         query=query,
         content_type=content_type,
         persona=persona,
@@ -255,10 +265,14 @@ EXAMPLES:
   Debug mode:
     python main.py --pipeline --query "Query" --debug
 
+    LangGraph orchestration:
+        python main.py --pipeline --use-langgraph --query "Query"
+
 DEFAULTS:
   • Persona: technical_writer
   • Content Type: summary
   • RAG: enabled
+    • Orchestration: simple pipeline (use --use-langgraph to switch)
 
 PERSONAS & CONTENT TYPES:
   Use --list-options to see available personas and content types.
@@ -313,6 +327,12 @@ PERSONAS & CONTENT TYPES:
         action="store_true",
         help="Enable debug logging"
     )
+
+    parser.add_argument(
+        "--use-langgraph",
+        action="store_true",
+        help="Use LangGraph orchestration engine"
+    )
     
     # Verbose
     parser.add_argument(
@@ -339,12 +359,13 @@ PERSONAS & CONTENT TYPES:
             persona=args.persona,
             no_rag=args.no_rag,
             debug=args.debug,
-            verbose=args.verbose
+            verbose=args.verbose,
+            use_langgraph=args.use_langgraph,
         )
     
     # Interactive mode (default)
     else:
-        interactive_mode()
+        interactive_mode(use_langgraph=args.use_langgraph)
 
 
 if __name__ == "__main__":
