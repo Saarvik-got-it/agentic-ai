@@ -1,270 +1,148 @@
-# RAG Agent - Production-Ready Document-Based Question Answering
+# Agentic AI: RAG + Content + Email Pipeline
 
-A scalable, modular Retrieval-Augmented Generation (RAG) system with a pipeline-ready Content Agent, built with LangChain components, Google Gemini, and FAISS. Designed for standalone CLI usage and seamless integration into backend workflows.
+This project is a modular, production-oriented multi-agent workflow for:
 
-## ✨ Features
+- Document-based question answering (RAG)
+- Structured content transformation (Content Agent)
+- Optional email delivery (Email Agent)
+- Pipeline orchestration (simple orchestrator or LangGraph)
 
-### Core Capabilities
-- **📄 Document Loading**: Automatic loading of PDF and TXT files from a configurable directory
-- **🧬 Smart Chunking**: RecursiveCharacterTextSplitter with configurable chunk size and overlap
-- **🔍 Vector Embeddings**: Direct Google Generative AI SDK embeddings (Gemini) with automatic vector storage
-- **📦 FAISS Vector Database**: Persistent local vector store for fast semantic search
-- **🤖 LLM Response Generation**: Google Gemini with intelligent fallback mechanism
-- **✍️ Content Transformation**: Config-driven Content Agent for persona-based, structured output generation
-- **📧 Email Delivery**: Production-ready Email Agent for SMTP delivery (Gmail-compatible)
-- **♻️ Caching**: Automatic reuse of existing vector indices (no recomputation)
-- **⏱️ Performance Tracking**: Built-in timing and latency measurement
-- **📊 Comprehensive Logging**: Detailed logs for debugging and monitoring
+It is designed for both standalone CLI use and backend integration.
 
-### Production Features
-- ✅ Environment-based configuration (`.env` files)
-- ✅ Modular architecture for easy component swapping
-- ✅ Error handling and graceful degradation
-- ✅ Vector store abstraction (FAISS → MongoDB/Pinecone ready)
-- ✅ Batch processing capabilities
-- ✅ CLI interface for standalone usage
-- ✅ FastAPI-ready structure for backend integration
-- ✅ No hardcoded values or paths
+## What This Project Does
 
-## 🏗️ Project Structure
+The system supports two primary operating modes:
 
-```
+1. RAG mode
+
+- Loads PDF/TXT documents from a local folder
+- Splits and embeds content with Google Gemini embeddings
+- Stores vectors in FAISS for fast retrieval
+- Answers user queries using retrieved context and Gemini LLM fallback
+
+2. Pipeline mode
+
+- Runs a multi-step flow: RAG -> Content -> Email (optional)
+- Validates persona/content type from config
+- Returns structured output and timing metrics
+- Can run with either:
+  - Standard orchestrator: pipelines/main_pipeline.py
+  - LangGraph orchestrator: pipelines/langgraph_pipeline.py
+
+## Core Features
+
+- Config-driven behavior for personas and content types via config/content_agent_config.json
+- Persistent FAISS vector store with automatic reuse
+- Fallback model strategy for Gemini generation
+- Optional SMTP email sending with Markdown-to-HTML rendering
+- Interactive CLI and one-shot command mode
+- Structured response objects with metrics and error handling
+
+## APIs, Services, and Frameworks Used
+
+### External APIs
+
+- Google Gemini API (Generative Language API) for:
+  - Embeddings via google.generativeai
+  - Text generation/chat via LangChain's ChatGoogleGenerativeAI
+
+### Services
+
+- SMTP email service (Gmail-compatible by default) for outbound email delivery
+- Local filesystem document store for source PDFs/TXT files
+- Local FAISS index persistence under vector_store/faiss_index
+
+### Frameworks and Libraries
+
+- LangChain:
+  - langchain (core orchestration utilities)
+  - langchain-community (FAISS vector store, document loaders)
+  - langchain-google-genai (Gemini chat model integration)
+  - langchain-text-splitters (document chunking)
+- LangGraph for graph-based pipeline orchestration (optional mode)
+- FAISS (faiss-cpu) for local semantic vector retrieval
+- Pydantic Settings (pydantic-settings) for typed environment-based config
+- python-dotenv for .env loading
+- PyPDF (via pypdf/PyPDFLoader) for PDF ingestion
+- Markdown (python-markdown) for Markdown-to-HTML email rendering
+
+### Runtime Interface
+
+- CLI-first application using argparse
+- No HTTP API is exposed in this repository currently (pipeline is structured to be backend/API-ready)
+
+## Project Structure
+
+```text
 agentic-ai/
-├── agents/                      # RAG agent implementations
-│   ├── __init__.py
-│   └── rag_agent.py            # Main RAG Agent class
-│   └── email_agent.py          # Email Agent implementation
-│
-├── config/
-│   └── content_agent_config.json  # Personas/content types/prompt templates
-│
-├── utils/                       # Shared utilities and abstractions
-│   ├── __init__.py
-│   ├── config.py               # Configuration management
-│   ├── logger.py               # Logging setup
-│   ├── document_loader.py      # Document loading (PDF/TXT)
-│   ├── embeddings.py           # Direct Gemini SDK embeddings wrapper
-│   ├── vector_store.py         # FAISS abstraction layer
-│   └── llm.py                  # LLM with fallback mechanism
-│
-├── pipelines/                   # Data processing pipelines
-│   ├── __init__.py
-│   └── ingestion.py            # Document ingestion pipeline
-│
-├── data/
-│   └── documents/              # Place your PDF/TXT files here
-│
-├── vector_store/               # FAISS index storage (auto-created)
-│
-├── logs/                        # Application logs (auto-created)
-│
-├── main.py                     # CLI entry point
-├── content_agent.py            # Standalone Content Agent (CLI + function)
-├── email_agent.py              # Standalone Email Agent (CLI + function)
-├── requirements.txt            # Python dependencies
-├── .env.example                # Environment variable template
-└── README.md                   # This file
+|-- agents/
+|   |-- rag_agent.py
+|   |-- content_agent.py
+|   `-- email_agent.py
+|-- pipelines/
+|   |-- ingestion.py
+|   |-- main_pipeline.py
+|   |-- langgraph_pipeline.py
+|   `-- pipeline_cli.py
+|-- utils/
+|   |-- config.py
+|   |-- document_loader.py
+|   |-- embeddings.py
+|   |-- vector_store.py
+|   |-- llm.py
+|   `-- email_utils.py
+|-- config/
+|   `-- content_agent_config.json
+|-- data/
+|   `-- documents/
+|-- vector_store/
+|-- logs/
+|-- main.py
+|-- content_agent.py            # compatibility wrapper
+|-- email_agent.py              # compatibility wrapper
+|-- setup_verify.py
+|-- test_pipeline.py
+|-- requirements.txt
+`-- .env.example
 ```
 
-## 🔗 Multi-Agent Pipeline
+## Prerequisites
 
-Typical flow for multi-agent orchestration:
+- Python 3.10+
+- Google Gemini API key
 
-`User Query -> RAG Agent -> Content Agent -> Email Agent`
-
-## 🚀 Quick Start
-
-### 1. Prerequisites
-
-- Python 3.10 or higher
-- Google Gemini API key (obtain from [Google AI Studio](https://aistudio.google.com/apikey))
-
-### 2. Installation
+## Installation
 
 ```bash
-# Clone or navigate to project
-cd agentic-ai
-
-# Create virtual environment (recommended)
+# from repository root
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Windows PowerShell
+.\venv\Scripts\Activate.ps1
+
+# macOS/Linux
+# source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### 3. Configuration
+## Configuration
+
+Create your environment file from the template:
 
 ```bash
-# Create .env file from template
-cp .env.example .env
-
-# Edit .env and add your Google API key
-# GOOGLE_API_KEY=your_actual_key_here
+copy .env.example .env
 ```
 
-### 4. Add Documents
+Set at least:
 
-Place your PDF and TXT files in the `data/documents/` folder:
-
-```bash
-mkdir -p data/documents
-cp your_files.pdf data/documents/
-cp your_files.txt data/documents/
+```env
+GOOGLE_API_KEY=your_google_api_key_here
 ```
 
-### 5. Run RAG Agent
+Optional email settings (required only when sending email):
 
-#### Interactive Mode
-```bash
-python main.py
-```
-
-Then ask questions:
-```
-📝 Query: What are the main topics covered?
-```
-
-#### Single Query
-```bash
-python main.py -q "Your question here"
-```
-
-#### Document Ingestion (explicit)
-```bash
-python main.py --ingest
-```
-
-## ✍️ Content Agent
-
-The Content Agent transforms factual input (from RAG or any source) into structured, persona-driven content.
-
-Core function:
-
-```python
-from content_agent import content_agent
-
-result = content_agent(rag_output, "blog", "technical_writer")
-```
-
-Design highlights:
-- Config-driven personas, content types, and prompt templates (no hardcoded prompt logic)
-- Dynamic prompt construction with clarity and no-hallucination rules
-- Standalone CLI support and pipeline-ready function interface
-- Uses `utils/llm.py -> generate_with_fallback()` for generation
-- Logging of input size, persona, content type, and output size
-- Error handling for empty input, invalid persona/content type, and runtime failures
-
-CLI examples:
-
-```bash
-python content_agent.py --list-options
-
-python content_agent.py \
-    --input-text "Cristiano Ronaldo is a Portuguese footballer..." \
-    --content-type summary \
-    --persona research_analyst
-
-python content_agent.py \
-    --input-file ./data/facts.txt \
-    --content-type report \
-    --persona technical_writer
-```
-
-Optional config override:
-
-```bash
-set CONTENT_AGENT_CONFIG=./config/content_agent_config.json
-```
-
-## 📧 Email Agent
-
-The Email Agent delivers generated content as a professional email using SMTP.
-
-What it does:
-- Accepts structured content from Content Agent or any source
-- Generates a subject automatically when not provided
-- Formats a clean email body (greeting, content, closing)
-- Sends through Gmail-compatible SMTP with TLS
-- Returns structured status payload for pipeline/API use
-
-Core function:
-
-```python
-from email_agent import email_agent
-
-result = email_agent(
-    content="Your generated content...",
-    recipient_email="recipient@example.com",
-    subject="Optional custom subject"
-)
-```
-
-Standalone CLI:
-
-```bash
-python email_agent.py --input-text "Hello world" --to example@gmail.com
-
-python email_agent.py --input-file output.txt --to example@gmail.com --subject "Weekly AI Summary"
-```
-
-Pipeline usage:
-
-```bash
-python main.py --query "Explain machine learning" --email example@gmail.com
-
-python main.py --pipeline --query "Explain machine learning" --email example@gmail.com
-
-python main.py --pipeline --use-langgraph --query "Explain machine learning" --email example@gmail.com
-```
-
-### Email Formatting
-
-Emails support **rich HTML formatting** with professional styling:
-
-- **Markdown Support**: Content is automatically converted from Markdown to formatted HTML
-- **Professional Template**: Emails include professional CSS styling with proper typography
-- **Multipart Format**: Emails include both plain text (for compatibility) and HTML versions
-- **Rendering Support**: Headings, bold, italics, lists, code blocks, blockquotes, and tables all render properly
-
-**Features:**
-- Top-level headings (# Heading) appear with styled borders
-- Secondary headings (## Heading) also styled with borders
-- Inline code appears with light background (`code`)
-- Code blocks appear with highlighted background (```code```)
-- Lists display properly with correct indentation
-- Blockquotes appear with left border accent
-- Links are styled and clickable
-
-**Graceful Fallback:**
-If Markdown library is unavailable, emails gracefully fall back to plain text without errors.
-
-**Example:**
-When you send this Markdown content:
-```
-# Machine Learning Overview
-
-Machine learning is a **powerful** technology that uses:
-
-- Supervised learning
-- Unsupervised learning
-- Reinforcement learning
-
-Key concepts include:
-
-```python
-model.fit(training_data)
-predictions = model.predict(test_data)
-```
-
-For more details, see [the guide](https://example.com).
-```
-
-The email recipient sees this rendered as a professionally formatted HTML email with styled headings, bold text, bullet lists, highlighted code, and working links.
-
-Environment setup (.env):
-
-```bash
+```env
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
@@ -272,958 +150,259 @@ EMAIL_PASSWORD=your_app_password
 EMAIL_USE_TLS=true
 ```
 
-Gmail App Password:
-- Enable 2-Step Verification on your Google account
-- Create an App Password for Mail
-- Use the App Password as EMAIL_PASSWORD (not your normal account password)
+## Add Documents
 
-## � Multi-Agent Pipeline
+Place files under data/documents/.
 
-**The Pipeline connects RAG Agent → Content Agent into a production-ready orchestrator.**
+Supported formats:
 
-The pipeline validates inputs, retrieves context from documents, transforms it through the content agent, and returns a structured response with timing metrics. Designed for easy backend integration and future LangGraph migration.
+- .pdf
+- .txt
 
-### Key Design Principles
+## Quick Validation
 
-✅ **Agents remain independently usable** — `rag_agent()` and `content_agent()` work standalone  
-✅ **Config-driven design** — No hardcoding. All personas/content types in `config/content_agent_config.json`  
-✅ **LangGraph-ready** — Each stage is a clean "node" — easy migration later  
-✅ **Comprehensive logging** — Pipeline start, stage execution, completion, timing metrics  
-✅ **FastAPI-ready** — Functions are reusable as API endpoints  
-✅ **Error handling** — Meaningful errors, never crashes  
-
-## LangGraph Pipeline
-
-LangGraph is a graph orchestration framework for LLM workflows. In this project, it is used as an orchestration layer only, while keeping the existing RAG agent and Content agent interfaces unchanged.
-
-### Why LangGraph Here
-
-- Adds a modular orchestration layer for multi-step agent flows
-- Keeps node boundaries explicit (`rag_node`, `content_node`)
-- Enables future branching/retry/memory patterns without rewriting agents
-- Preserves config-driven behavior and existing CLI usage
-
-### Architecture Comparison
-
-Before (linear function orchestration):
-
-```text
-run_pipeline()
-    -> RAG stage
-    -> Content stage
-    -> response
-```
-
-After (graph-based orchestration):
-
-```text
-StateGraph
-    START -> rag_node -> content_node -> email_node -> END
-```
-
-### How To Run (LangGraph)
+Run setup checks:
 
 ```bash
-python main.py --use-langgraph
-
-# Single command mode
-python main.py --use-langgraph --query "Explain machine learning" --persona technical_writer --content-type summary
-
-# Optional explicit pipeline flag
-python main.py --pipeline --use-langgraph --query "Explain machine learning"
+python setup_verify.py
 ```
 
-### Diagram
-
-```text
-User -> RAG Node -> Content Node -> Email Node -> Output
-```
-
-### Benefits
-
-- Modular orchestration
-- Scalable design for additional nodes
-- Easier extension for conditional routing and retries
-- FastAPI deployment ready (function-callable entrypoint)
-
-### Future Scope
-
-- Gmail OAuth / Gmail API integration
-- Email templates (HTML and brand-styled themes)
-- Attachments and rich content
-- Notification and bulk email workflows
-
-### Python Entry Point
-
-```python
-from pipelines.langgraph_pipeline import run_langgraph_pipeline
-
-response = run_langgraph_pipeline(
-        query="Explain machine learning",
-        content_type="summary",
-        persona="technical_writer",
-        use_rag=True,
-)
-```
-
-### Core Function
-
-```python
-from pipelines.main_pipeline import run_pipeline
-
-response = run_pipeline(
-    query="Explain machine learning",
-    content_type="summary",
-    persona="technical_writer",
-    use_rag=True,
-    debug=False
-)
-
-print(response.final_output)
-print(response.metrics)  # {'total_duration': 5.23, 'rag_duration': 2.15, ...}
-```
-
-**Response Structure:**
-
-```python
-{
-    "success": True,
-    "query": "Original query",
-    "rag_output": "Retrieved context from documents",
-    "final_output": "Structured content from content agent",
-    "persona": "technical_writer",
-    "content_type": "summary",
-    "error": None,
-    "metrics": {
-        "total_duration": 5.23,
-        "validation_duration": 0.01,
-        "rag_duration": 2.15,
-        "content_duration": 3.07
-    },
-    "timestamp": "2024-03-18T14:23:55.123456"
-}
-```
-
-### CLI Usage
-
-#### Interactive Pipeline Mode
+Run basic pipeline validation tests:
 
 ```bash
-# Start interactive pipeline
+python test_pipeline.py
+```
+
+## Usage
+
+### 1) RAG Agent (default behavior)
+
+Interactive:
+
+```bash
+python main.py
+```
+
+Single query:
+
+```bash
+python main.py --query "What are the main topics?"
+```
+
+Explicit ingestion:
+
+```bash
+python main.py --ingest
+```
+
+### 2) Pipeline Mode (RAG -> Content -> Email optional)
+
+Interactive pipeline:
+
+```bash
 python main.py --pipeline
-
-# Follow the prompts:
-# 📝 Enter query: Explain machine learning
-# 📋 Content type [summary]: blog
-# 👤 Persona [technical_writer]: technical_writer
-# Use RAG retrieval? [Y/n]: y
 ```
 
-#### Single Command Execution
+Single run:
 
 ```bash
-# With all defaults (technical_writer, summary, RAG enabled)
-python main.py --pipeline --query "Your question"
-
-# With specific persona and content type
-python main.py --pipeline \
-    --query "Topic to explore" \
-    --persona blog_writer \
-    --content-type blog
-
-# Skip RAG stage (direct content transformation)
-python main.py --pipeline \
-    --query "Already formatted text" \
-    --no-rag \
-    --persona beginner_teacher
-
-# Enable debug logging
-python main.py --pipeline --query "Query" --debug
-
-# Show detailed metrics
-python main.py --pipeline --query "Query" --verbose
+python main.py --pipeline --query "Explain machine learning"
 ```
 
-#### List Available Options
+Specify persona and content type:
+
+```bash
+python main.py --pipeline --query "Explain transformers" --persona technical_writer --content-type report
+```
+
+Skip RAG stage:
+
+```bash
+python main.py --pipeline --query "Use this text directly" --no-rag
+```
+
+List available options:
 
 ```bash
 python main.py --pipeline --list-options
-
-# Output:
-# Available Personas:
-#   • technical_writer
-#   • blog_writer
-#   • research_analyst
-#   • beginner_teacher
-#
-# Available Content Types:
-#   • summary
-#   • blog
-#   • report
-#   • explanation
 ```
 
-### Pipeline Execution Flow
+### 3) LangGraph Orchestration
 
-```
-Input Validation
-    ↓
-  [Check query not empty]
-  [Check persona exists in config]
-  [Check content_type exists in config]
-    ↓
-RAG Stage (Optional)
-    ↓
-  [if use_rag=True]: Process through RAG Agent
-    - Load documents
-    - Create embeddings
-    - Retrieve relevant context
-    - Generate contextual response
-  [else]: Use query as-is
-    ↓
-Content Transformation Stage
-    ↓
-  [Process through Content Agent]
-    - Build persona/content-type prompt
-    - Generate LLM output
-    - Apply formatting and length control
-    ↓
-Return Structured Response
-    ↓
-  [Include metrics, timestamp, success flag]
-```
-
-### Python Examples
-
-**Basic Usage (with defaults):**
-
-```python
-from pipelines.main_pipeline import run_pipeline
-
-response = run_pipeline("What is AI?")
-
-if response.success:
-    print(response.final_output)
-else:
-    print(f"Error: {response.error}")
-```
-
-**Advanced Usage (all options):**
-
-```python
-from pipelines.main_pipeline import run_pipeline
-
-response = run_pipeline(
-    query="Explain quantum computing",
-    content_type="explanation",      # One of: summary, blog, report, explanation
-    persona="beginner_teacher",       # One of: technical_writer, blog_writer, research_analyst, beginner_teacher
-    use_rag=True,                     # Enable document retrieval
-    debug=True                        # Verbose logging
-)
-
-if response.success:
-    print(f"✅ Generated {response.content_type} for {response.persona}: {response.final_output[:200]}...")
-    print(f"⏱️  Total time: {response.metrics['total_duration']:.2f}s")
-else:
-    print(f"❌ Failed: {response.error}")
-```
-
-**Bypass RAG (direct content transformation):**
-
-```python
-from pipelines.main_pipeline import run_pipeline
-
-factual_input = """
-Ronaldo is a Portuguese footballer born in 1985.
-He plays for Al Nassr in Saudi Arabia.
-He is considered one of the greatest players of all time.
-"""
-
-response = run_pipeline(
-    query=factual_input,
-    content_type="blog",
-    persona="blog_writer",
-    use_rag=False  # Skip RAG, use input directly
-)
-
-print(response.final_output)
-```
-
-**Batch Processing:**
-
-```python
-from pipelines.main_pipeline import run_pipeline
-
-queries = [
-    "Explain AI",
-    "What is machine learning",
-    "How does deep learning work"
-]
-
-for query in queries:
-    response = run_pipeline(
-        query=query,
-        persona="technical_writer",
-        content_type="explanation"
-    )
-    
-    if response.success:
-        print(f"✅ {query}")
-        print(response.final_output)
-    else:
-        print(f"❌ {query}: {response.error}")
-    print("-" * 80)
-```
-
-### Available Personas & Content Types
-
-**Personas:** Configure in `config/content_agent_config.json`
-
-| Persona | Tone | Depth | Style |
-|---------|------|-------|-------|
-| `technical_writer` | Precise, professional | Intermediate-advanced | Clear headings, bullet points |
-| `blog_writer` | Engaging, accessible | General audience | Narrative flow, short sections |
-| `research_analyst` | Objective, evidence-focused | Thorough, analytical | Structured sections |
-| `beginner_teacher` | Friendly, explanatory | Beginner-friendly | Step-by-step, simple language |
-
-**Content Types:** Configure in `config/content_agent_config.json`
-
-| Type | Objective | Structure |
-|------|-----------|-----------|
-| `summary` | Concise overview | 5-8 bullet points + key takeaway |
-| `blog` | Full blog post | Title, intro, 3-5 sections, conclusion |
-| `report` | Formal report | Executive summary, background, findings, recommendations |
-| `explanation` | Step-by-step walkthrough | What it is, why it matters, steps, example, caveats |
-
-### Error Handling
-
-Pipeline returns `success=False` with meaningful error messages:
-
-```python
-response = run_pipeline("", persona="invalid", content_type="invalid")
-
-if not response.success:
-    print(response.error)
-    # Output: "Query cannot be empty."
-```
-
-**Common Errors:**
-
-- `Query cannot be empty.` — Provide non-empty input
-- `Invalid persona 'xyz'. Available: ...` — Check available personas
-- `Invalid content_type 'xyz'. Available: ...` — Check available content types
-- `RAG retrieval failed: ...` — Check documents and configuration
-- `Content generation failed: ...` — Check LLM configuration and API key
-
-### Integration with FastAPI
-
-```python
-# app.py
-from fastapi import FastAPI, HTTPException
-from pipelines.main_pipeline import run_pipeline, get_available_options
-
-app = FastAPI()
-
-@app.get("/options")
-async def get_options():
-    """List available personas and content types."""
-    return get_available_options()
-
-@app.post("/pipeline")
-async def execute_pipeline(
-    query: str,
-    persona: str = "technical_writer",
-    content_type: str = "summary",
-    use_rag: bool = True
-):
-    """Execute pipeline and return structured response."""
-    response = run_pipeline(
-        query=query,
-        persona=persona,
-        content_type=content_type,
-        use_rag=use_rag
-    )
-    
-    if not response.success:
-        raise HTTPException(status_code=400, detail=response.error)
-    
-    return response.to_dict()
-
-# Run: uvicorn app:app --reload
-```
-
-Then call:
+Enable LangGraph orchestrator:
 
 ```bash
-curl -X POST "http://localhost:8000/pipeline" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Explain AI",
-    "persona": "beginner_teacher",
-    "content_type": "explanation",
-    "use_rag": true
-  }'
+python main.py --pipeline --use-langgraph --query "Explain retrieval augmented generation"
 ```
 
-### Future Enhancements (LangGraph Ready)
+The current graph flow is:
 
-The pipeline is designed to migrate to LangGraph:
-
-```python
-# Future: Direct LangGraph integration
-from langgraph.graph import StateGraph
-
-# Each stage becomes a node
-graph = StateGraph(PipelineState)
-graph.add_node("validate", validate_stage)
-graph.add_node("rag", rag_stage)
-graph.add_node("content", content_stage)
-graph.add_edge("validate", "rag")
-graph.add_edge("rag", "content")
-
-# Existing pipeline_impl functions work as-is
+```text
+START -> rag_node -> content_node -> email_node -> END
 ```
 
-## �📋 Configuration
+### 4) Send Final Output by Email
 
-Configure via `.env` file:
-
-```env
-# API
-GOOGLE_API_KEY=your_key
-
-# Paths
-DOCUMENT_FOLDER=./data/documents
-VECTOR_STORE_PATH=./vector_store/faiss_index
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FILE=./logs/rag_agent.log
-
-# Retrieval
-TOP_K_CHUNKS=5
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
-
-# LLM
-LLM_TEMPERATURE=0.3
-LLM_MAX_TOKENS=512
-```
-
-### Configuration Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `GOOGLE_API_KEY` | Required | Your Google Gemini API key |
-| `DOCUMENT_FOLDER` | `./data/documents` | Where to load documents from |
-| `VECTOR_STORE_PATH` | `./vector_store/faiss_index` | Where to store FAISS index |
-| `TOP_K_CHUNKS` | 5 | Number of relevant documents to retrieve |
-| `CHUNK_SIZE` | 1000 | Characters per text chunk |
-| `CHUNK_OVERLAP` | 200 | Overlap between chunks |
-| `LLM_TEMPERATURE` | 0.3 | LLM creativity (0.0=deterministic, 1.0=random) |
-| `LLM_MAX_TOKENS` | 512 | Maximum response length |
-
-## 🔧 Architecture
-
-### Core Components
-
-#### 1. **RAG Agent** (`agents/rag_agent.py`)
-Main orchestrator class that coordinates the entire pipeline:
-
-```python
-from agents.rag_agent import RAGAgent
-
-# Initialize
-agent = RAGAgent()
-
-# Query
-response = agent.query("Your question")
-print(response)
-```
-
-Or use the convenience function:
-
-```python
-from agents.rag_agent import rag_agent
-
-response = rag_agent("Your question")
-```
-
-#### 2. **Document Loader** (`utils/document_loader.py`)
-- Automatically finds and loads PDF and TXT files
-- Extracts text and metadata
-- Splits documents into manageable chunks
-
-```python
-from utils.document_loader import load_documents, split_documents
-
-docs = load_documents("./data/documents")
-split_docs = split_documents(docs, chunk_size=1000)
-```
-
-#### 3. **Embeddings** (`utils/embeddings.py`)
-- Uses `google.generativeai` directly for embedding generation
-- Converts text to 768-dimensional vectors
-- Includes model-name fallback (`embedding-001` -> `models/embedding-001`)
-- Exposes a LangChain-compatible interface for FAISS integration
-
-```python
-from utils.embeddings import embed_text, embed_texts
-
-vector = embed_text("Sample text")
-vectors = embed_texts(["text1", "text2"])
-```
-
-Model used for embeddings:
-- Primary: `embedding-001`
-- Fallback: `models/embedding-001`
-- Runtime fallback: API-discovered embed-capable models (for example `models/gemini-embedding-001`)
-
-#### 4. **Vector Store** (`utils/vector_store.py`)
-- FAISS-based abstraction layer
-- Handles index creation and persistence
-- Provides similarity search interface
-- **Abstraction allows easy migration** to MongoDB Atlas, Pinecone, etc.
-
-```python
-from utils.vector_store import VectorStoreManager
-
-manager = VectorStoreManager()
-manager.get_or_create(documents)
-docs = manager.retrieve_documents("query", k=5)
-```
-
-#### 5. **LLM with Fallback** (`utils/llm.py`)
-Implements automatic retry across multiple Gemini models:
-
-**Model Priority (High → Low):**
-1. Gemini 3.1 Flash Lite
-2. Gemini 2.5 Flash Lite
-3. Gemini 3 Flash
-4. Gemini 2.5 Flash
-
-**Fallback Triggers:**
-- Rate limit (429)
-- Quota exceeded
-- Timeout
-- Service unavailable (503)
-
-```python
-from utils.llm import generate_with_fallback
-
-response = generate_with_fallback(
-    prompt="Your prompt",
-    system_prompt="Optional context"
-)
-```
-
-#### 6. **Configuration** (`utils/config.py`)
-Centralized settings management with validation:
-
-```python
-from utils.config import get_settings
-
-settings = get_settings()
-print(settings.google_api_key)
-print(settings.top_k_chunks)
-```
-
-#### 7. **Logging** (`utils/logger.py`)
-Structured logging to both console and file:
-
-```python
-from utils.logger import setup_logger
-
-logger = setup_logger(__name__)
-logger.info("Processing started")
-```
-
-#### 8. **Document Ingestion Pipeline** (`pipelines/ingestion.py`)
-Batch processing of documents with monitoring:
-
-```python
-from pipelines.ingestion import ingest_documents, reindex_documents
-
-# Load/create index
-ingest_documents()
-
-# Force recreate
-reindex_documents()
-```
-
-## 🔄 Workflow
-
-```
-┌─────────────┐
-│   USER      │
-│  QUERY      │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────────────────────┐
-│    RAG AGENT                    │
-│  ( agents/rag_agent.py )        │
-└──────┬──────────────────────────┘
-       │
-       ├─► [1] Load Documents (if first run)
-       │       └─► utils/document_loader.py
-       │           ├─ Find PDF/TXT files
-       │           ├─ Extract text
-       │           └─ Split into chunks
-       │
-       ├─► [2] Create Embeddings
-       │       └─► utils/embeddings.py
-       │           └─ Google Gemini API
-       │
-       ├─► [3] Index with FAISS
-       │       └─► utils/vector_store.py
-       │           └─ Save locally (reuse)
-       │
-       ├─► [4] Retrieve Context
-       │       └─► Query: similarity_search(k=5)
-       │           └─ Get top-5 relevant chunks
-       │
-       ├─► [5] Generate Response
-       │       └─► utils/llm.py
-       │           ├─ Try Model 1
-       │           ├─ Fallback → Model 2
-       │           ├─ Fallback → Model 3
-       │           └─ Fallback → Model 4
-       │
-       └─► [6] Return Answer
-           └─ Formatted Response
-```
-
-## 🧠 LLM Fallback Mechanism
-
-The system automatically handles failures:
-
-```python
-# Automatic fallback flow:
-Try Model 1 (Gemini 3.1 Flash Lite)
-  ├─ Success? → Return response
-  └─ Rate Limit/Timeout? → Try Model 2
-
-Try Model 2 (Gemini 2.5 Flash Lite)
-  ├─ Success? → Return response
-  └─ Rate Limit/Timeout? → Try Model 3
-
-Try Model 3 (Gemini 3 Flash)
-  ├─ Success? → Return response
-  └─ Rate Limit/Timeout? → Try Model 4
-
-Try Model 4 (Gemini 2.5 Flash)
-  ├─ Success? → Return response
-  └─ All Failed? → Return graceful error
-
-# Logged example:
-[INFO] Attempting to generate response with model: gemini-3.1-flash-lite
-[WARNING] Model gemini-3.1-flash-lite failed (rate limit): Rate limit exceeded
-[INFO] Attempting to generate response with model: gemini-2.5-flash-lite
-[INFO] Successfully generated response using gemini-2.5-flash-lite
-```
-
-## 🔌 Integration Examples
-
-### FastAPI Backend
-
-```python
-# app.py
-from fastapi import FastAPI
-from agents.rag_agent import rag_agent
-
-app = FastAPI()
-
-@app.post("/ask")
-async def ask_question(query: str):
-    response = rag_agent(query)
-    return {"query": query, "answer": response}
-
-# Run: uvicorn app:app --reload
-```
-
-### Batch Processing
-
-```python
-from agents.rag_agent import RAGAgent
-
-agent = RAGAgent()
-
-queries = [
-    "What is the main topic?",
-    "How does it work?",
-    "What are the benefits?"
-]
-
-for query in queries:
-    answer = agent.query(query)
-    print(f"Q: {query}\nA: {answer}\n")
-```
-
-### Custom Pipeline
-
-```python
-from utils.document_loader import load_documents, split_documents
-from utils.vector_store import VectorStoreManager
-from utils.llm import generate_with_fallback
-
-# Custom workflow
-docs = load_documents("./my_docs")
-split = split_documents(docs)
-manager = VectorStoreManager()
-manager.create_vector_store(split)
-retrieved = manager.retrieve_documents("my query", k=3)
-context = "\n".join([d.page_content for d in retrieved])
-answer = generate_with_fallback(f"Based on: {context}")
-```
-
-## 📊 Logging Output
-
-The system logs to both console and file with detailed information:
-
-```
-2024-03-18 14:23:45 - agents.rag_agent - INFO - Processing query: What is machine learning?
-2024-03-18 14:23:45 - utils.document_loader - INFO - Loading documents from ./data/documents
-2024-03-18 14:23:45 - utils.document_loader - INFO - Found 3 PDF files and 2 TXT files
-2024-03-18 14:23:46 - utils.document_loader - INFO - Loading PDF: document1.pdf
-2024-03-18 14:23:47 - utils.embeddings - INFO - Initializing Google Gemini embeddings via direct SDK
-2024-03-18 14:23:48 - utils.vector_store - INFO - Creating vector store from 15 documents
-2024-03-18 14:23:52 - utils.vector_store - INFO - Vector store created and saved in 4.23s
-2024-03-18 14:23:53 - utils.llm - INFO - Attempting to generate response with model: gemini-3.1-flash-lite
-2024-03-18 14:23:55 - utils.llm - INFO - Successfully generated response using gemini-3.1-flash-lite
-2024-03-18 14:23:55 - agents.rag_agent - INFO - Query processed in 10.25s
-
-Logs saved to: ./logs/rag_agent_20240318.log
-```
-
-## 🛡️ Error Handling
-
-The system provides graceful error handling:
-
-```python
-# Missing API key
-ValueError: Configuration error: GOOGLE_API_KEY not set
-
-# No documents
-"No documents found in the knowledge base. Please add documents to the data/documents folder."
-
-# All LLM models fail
-"Unable to generate response. All Gemini models failed. Please try again later."
-
-# Query not found in context
-"Not enough information provided in the documents."
-```
-
-## 🔐 Security Considerations
-
-- **API Keys**: Never commit `.env` files. Use `.env.example` as template.
-- **Document Folder**: Ensure proper permissions on sensitive documents.
-- **Vector Store**: FAISS index is unencrypted. Store in secure location for production.
-- **Logging**: Remove sensitive data from logs if needed.
-
-## 🎯 Production Deployment
-
-### Docker Deployment
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-CMD ["python", "main.py"]
-```
-
-### Environment Setup
+Pipeline output to email:
 
 ```bash
-# .env (production)
-GOOGLE_API_KEY=prod_key
-DOCUMENT_FOLDER=/mnt/documents
-VECTOR_STORE_PATH=/mnt/vector_store
-LOG_LEVEL=WARNING
+python main.py --pipeline --query "Weekly summary" --email recipient@example.com
 ```
 
-### Monitoring
-
-```python
-# Check agent status
-python main.py --verbose
-tail -f logs/rag_agent_*.log
-```
-
-## 🔄 Updating Documents
-
-To add new documents and rebuild the index:
+With explicit subject:
 
 ```bash
-# 1. Copy documents to data/documents/
-cp new_docs.pdf data/documents/
-
-# 2. Reindex
-python main.py --ingest
-
-# Or force rebuild:
-# python pipelines/ingestion.py --force
+python main.py --pipeline --query "Weekly summary" --email recipient@example.com --email-subject "Weekly AI Summary"
 ```
 
-## 🧪 Testing & Validation
+You can also force intent with:
 
-```python
-# Simple validation
-from agents.rag_agent import rag_agent
-
-# Test basic query
-response = rag_agent("What is the main topic?")
-assert len(response) > 10, "Response too short"
-assert "Not enough information" not in response or "Topic" in response
-
-print("✅ Basic test passed")
-```
-
-## 📈 Performance Characteristics
-
-Typical performance on modern hardware:
-
-| Operation | Time (ms) | Notes |
-|-----------|-----------|-------|
-| Document Loading (5 files) | 500-1000 | One-time, cached |
-| Embedding Generation | 100-200 | Per chunk |
-| Vector Index Creation | 2000-5000 | One-time, reused |
-| Query Retrieval | 50-100 | Fast semantic search |
-| LLM Response Generation | 2000-4000 | Network-dependent |
-| **Total Query** | **3000-5000** | End-to-end latency |
-
-## 🚀 Advanced Customization
-
-### Custom Vector Store (MongoDB Atlas)
-
-```python
-# utils/vector_store.py - Replace FAISS with MongoDB
-class MongoVectorStore:
-    def create_vector_store(self, documents):
-        # MongoDB Atlas implementation
-        pass
-
-# agents/rag_agent.py - Use MongoDB instead
-manager = MongoVectorStore()
-```
-
-### Custom LLM (OpenAI, Anthropic)
-
-```python
-# utils/llm.py - Replace Gemini
-from langchain_openai import ChatOpenAI
-
-def get_llm_with_fallback():
-    return ChatOpenAI(model="gpt-4")
-```
-
-### Custom Prompt Template
-
-```python
-# utils/llm.py - Modify create_rag_prompt()
-def create_rag_prompt(context: str, query: str) -> str:
-    return f"""Your custom prompt: {context}
-    Question: {query}"""
-```
-
-## 📚 API Reference
-
-### RAGAgent Class
-
-```python
-class RAGAgent:
-    def __init__(self, vector_store_manager=None)
-    def initialize() -> bool
-    def query(user_query: str) -> str
-```
-
-### Document Loader
-
-```python
-load_documents(folder: str) -> List[Document]
-split_documents(docs: List[Document], chunk_size: int, overlap: int) -> List[Document]
-```
-
-### Vector Store
-
-```python
-class VectorStoreManager:
-    def create_vector_store(documents) -> FAISS
-    def load_vector_store() -> FAISS
-    def get_or_create(documents) -> FAISS
-    def retrieve_documents(query: str, k: int) -> List[Document]
-```
-
-### LLM
-
-```python
-generate_with_fallback(prompt: str, system_prompt: str = None) -> str
-create_rag_prompt(context: str, query: str) -> str
-```
-
-### Ingestion
-
-```python
-ingest_documents(folder: str = None, force: bool = False) -> bool
-reindex_documents(folder: str = None) -> bool
-```
-
-## 🐛 Troubleshooting
-
-### Issue: "GOOGLE_API_KEY not found"
-**Solution**: Create `.env` file and add your API key
 ```bash
-cp .env.example .env
-# Edit .env and add your key
+python main.py --pipeline --query "Weekly summary" --send-email --email recipient@example.com
 ```
 
-### Issue: No documents loaded
-**Solution**: Check document folder path and file formats
+### 5) Standalone Content Agent
+
+List options:
+
 ```bash
-ls -la data/documents/
-# Should show .pdf and .txt files
+python content_agent.py --list-options
 ```
 
-### Issue: Slow embeddings
-**Solution**: Reduce chunk size or batch process
-```env
-CHUNK_SIZE=500  # Smaller chunks = faster
+From inline text:
+
+```bash
+python content_agent.py --input-text "Factual input text" --content-type summary --persona research_analyst
 ```
 
-### Issue: LLM timeouts
-**Solution**: Already handled! System auto-retries with next model
-Check logs: `tail -f logs/rag_agent_*.log`
+From file:
 
-## 📝 License
+```bash
+python content_agent.py --input-file data\documents\sample_doc.txt --content-type report --persona technical_writer
+```
 
-This project is provided as-is for production use.
+### 6) Standalone Email Agent
 
-## 🤝 Contributing
+```bash
+python email_agent.py --input-text "Hello from the email agent" --to recipient@example.com
+```
 
-To extend functionality:
+```bash
+python email_agent.py --input-file output.txt --to recipient@example.com --subject "Custom subject"
+```
 
-1. Add feature to appropriate utility module
-2. Update logging
-3. Add error handling
-4. Update `.env.example`
-5. Document in README
+## Available Personas and Content Types
 
-## 📞 Support
+Defined in config/content_agent_config.json.
 
-For issues or questions:
-- Check logs: `logs/rag_agent_*.log`
-- Review configuration: `.env` file
-- Run with verbose logging: `LOG_LEVEL=DEBUG`
+Personas:
 
----
+- technical_writer
+- blog_writer
+- research_analyst
+- beginner_teacher
 
-**Built with:** LangChain • Google Gemini • FAISS • Python
+Content types:
 
-**Last Updated:** March 18, 2024
+- summary
+- blog
+- report
+- explanation
 
-**Version:** 1.0.0 - Production Ready ✅
+## Environment Variables
+
+Core:
+
+- GOOGLE_API_KEY
+
+RAG/vector settings:
+
+- DOCUMENT_FOLDER (default: ./data/documents)
+- VECTOR_STORE_PATH (default: ./vector_store/faiss_index)
+- TOP_K_CHUNKS (default: 5)
+- CHUNK_SIZE (default: 1000)
+- CHUNK_OVERLAP (default: 200)
+
+LLM and logging:
+
+- LLM_TEMPERATURE (default: 0.3)
+- LLM_MAX_TOKENS (default: 512)
+- LOG_LEVEL (default: INFO)
+- LOG_FILE (default: ./logs/rag_agent.log)
+
+Email:
+
+- EMAIL_HOST
+- EMAIL_PORT
+- EMAIL_USER
+- EMAIL_PASSWORD
+- EMAIL_USE_TLS
+
+Content agent config override:
+
+- CONTENT_AGENT_CONFIG (optional; default: ./config/content_agent_config.json)
+
+## Pipeline Response Shape
+
+Both orchestrators return a structured PipelineResponse containing:
+
+- success
+- query
+- rag_output (None when --no-rag)
+- final_output
+- persona
+- content_type
+- email_status (when email stage runs)
+- error
+- metrics
+- timestamp
+
+Metrics include:
+
+- total_duration
+- validation_duration
+- rag_duration
+- content_duration
+- email_duration
+
+## Notes and Operational Behavior
+
+- FAISS index is persisted and reused after first build.
+- If no documents are present, RAG returns a clear guidance message.
+- Pipeline mode is auto-detected when pipeline-specific flags are used.
+- Email sending is blocking and depends on valid SMTP configuration.
+- Markdown package is used for rich HTML emails, with graceful fallback when unavailable.
+
+## Troubleshooting
+
+1. Missing dependencies
+
+```bash
+pip install -r requirements.txt --upgrade
+```
+
+2. Invalid or missing API key
+
+- Check .env
+- Ensure GOOGLE_API_KEY is set and not placeholder text
+
+3. No retrieval results
+
+- Verify files exist in data/documents/
+- Re-run ingestion with python main.py --ingest
+
+4. Email sending fails
+
+- Verify EMAIL_USER and EMAIL_PASSWORD
+- For Gmail, use an app password (not account password)
+- Confirm SMTP host/port and network access
+
+## Typical End-to-End Flow
+
+```text
+User Query
+   -> RAG retrieval from local documents
+   -> Content transformation by persona/type
+   -> Optional email delivery
+   -> Structured response + metrics
+```
